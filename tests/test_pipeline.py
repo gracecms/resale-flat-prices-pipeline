@@ -360,3 +360,27 @@ def test_existing_key_is_left_alone(tmp_path, monkeypatch):
     env = tmp_path / ".env"
     assert ensure_secret_key(env) is False
     assert not env.exists()
+
+
+def test_sales_are_only_compared_with_sales_from_the_same_year():
+    """A price normal for its year must not be flagged just because prices later fell."""
+    peak = [make_row(month="2013-06", block=str(100 + i), resale_price=600_000.0 + 1_000 * i)
+            for i in range(6)]
+    later = [make_row(month="2015-06", block=str(200 + i), resale_price=400_000.0 + 1_000 * (i % 10))
+             for i in range(30)]
+    out = add_anomaly_flags(make_df(peak + later))
+    assert not out["is_price_anomalous"].any()
+
+
+def test_identifier_follows_the_transaction_not_its_row_position():
+    """Reordering the input (as a republished file might) must not move identifiers."""
+    rows = [make_row(storey_range=s, floor_area_sqm=a, resale_price=300_000.0)
+            for s, a in [("01 TO 03", 68.0), ("04 TO 06", 67.0), ("07 TO 09", 69.0), ("10 TO 12", 66.0)]]
+    original = build_resale_identifier(make_df(rows))
+    reordered = build_resale_identifier(make_df(rows[::-1]))
+
+    key = ["storey_range", "floor_area_sqm"]
+    by_txn = lambda out: dict(zip(map(tuple, out[key].values), out["resale_identifier"]))
+    assert by_txn(original) == by_txn(reordered)
+    assert len(set(original["resale_identifier"])) == 4   # all four share a base, all unique
+    assert list(reordered["storey_range"]) == [r["storey_range"] for r in rows[::-1]]  # row order kept

@@ -263,10 +263,11 @@ pipeline and Tableau. The ETL job reuses Part 1's rule modules rather than reimp
 so a validation-rule change happens once. Orchestration lives in a version-controlled state
 machine definition, and the whole platform is intended to be deployed as IaC (CDK/Terraform).
 
-**One concrete porting note**: Part 1 resolves Resale Identifier collisions with a sequential
-suffix in original row order. In Spark that ordering must be made explicit — a
-`row_number()` window partitioned by the base identifier with a deterministic sort key — or the
-suffixes become non-deterministic across runs and the hashed output stops being reproducible.
+**One concrete porting note**: Part 1 numbers Resale Identifier collisions in the order of
+each transaction's own values, not its row position. That ports directly to Spark as a
+`row_number()` window partitioned by the base identifier and ordered by the transaction
+columns. The ordering must stay explicit: Spark has no stable row order, so without it the
+suffixes — and therefore the hashed output — would change between runs.
 
 ---
 

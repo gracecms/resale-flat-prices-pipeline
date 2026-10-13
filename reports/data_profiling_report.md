@@ -161,11 +161,19 @@ A secondary observation: the published column is not consistently formatted acro
 
 ## Anomalous Resale Price Findings
 
-- 1,047 of 104,783 cleaned rows (1.00%) flagged as potentially anomalous via Tukey's IQR fences (1.5x IQR), computed per (town, flat_type, flat_model) group on both resale_price and price_per_sqm. Flagged, not quarantined - see `src/anomaly.py` for the full rationale.
+- 2,947 of 104,783 cleaned rows (2.81%) flagged as potentially anomalous via Tukey's IQR fences (1.5x IQR), computed per (town, flat_type, flat_model, year) group on both resale_price and price_per_sqm. Flagged, not quarantined - see `src/anomaly.py` for the full rationale.
+
+- Year is part of each group because prices moved over the period (the median fell about 10% from 2013 to 2015). With all years pooled, the flag rate ranged from 0.54% to 2.06% by year, mostly flagging sales near the 2013 peak for their timing. Comparing each sale with the same year's sales levels it out:
+
+| Year | 2012 | 2013 | 2014 | 2015 | 2016 | 2017 |
+|---|---|---|---|---|---|---|
+| % flagged | 3.07 | 3.06 | 2.44 | 3.05 | 2.66 | 2.63 |
+
+- An alternative, adjusting prices by a monthly index, was rejected: the monthly median moves with which flats sell as well as with prices, so the adjusted flag rate drifted from 1.3% to 4.1% across the years instead of levelling out.
 
 ## Resale Identifier & De-identification
 
-- 12,952 rows required a collision-resolution suffix on the base 12-character identifier (see `src/identifier.py`). Suffixes are deterministic and assigned in original row order - no rows were dropped to achieve uniqueness.
+- 12,952 rows required a collision-resolution suffix on the base 12-character identifier (see `src/identifier.py`). Suffixes are assigned in the order of each transaction's own values, not its row position, so a reordered source file cannot move an identifier (or its hash) onto a different transaction. No rows were dropped.
 - The identifier is de-identified via HMAC-SHA256 keyed with a secret from `.env` (`HASH_SECRET_KEY`), not a plain or publicly-salted hash, specifically because the identifier's construction rule is simple/enumerable - full rationale in `src/deidentify.py`.
 
 ## Data dictionary — columns added by this pipeline
@@ -178,7 +186,7 @@ The ten source columns are carried through unchanged. The columns below are deri
 | `remaining_lease_months` | int | cleaned, transformed, hashed | Month component; always 0, because `lease_commence_date` is a year only. |
 | `remaining_lease_display` | str | cleaned, transformed, hashed | Human-readable form, e.g. `51 years 0 months`. |
 | `price_per_sqm` | float | cleaned, transformed, hashed | `resale_price / floor_area_sqm`. Size-normalised price, used by the anomaly rule and useful for modelling. |
-| `is_price_anomalous` | bool | cleaned, transformed, hashed | True if the row is a price outlier **within its own (town, flat_type, flat_model) group**. A flag for review, not a quality failure — these rows are valid. |
+| `is_price_anomalous` | bool | cleaned, transformed, hashed | True if the row is a price outlier **within its own (town, flat_type, flat_model, year) group**. A flag for review, not a quality failure — these rows are valid. |
 | `price_anomaly_reason` | str | cleaned, transformed, hashed | Which test fired: `resale_price_outlier_in_group`, `price_per_sqm_outlier_in_group`, or both. |
 | `resale_identifier` | str | transformed only | The 12-character business identifier, with a `_NN` suffix where the base code collided. |
 | `hashed_identifier` | str | hashed only | HMAC-SHA256 of `resale_identifier`. Replaces the plaintext identifier — de-identification would be pointless if both appeared together. |

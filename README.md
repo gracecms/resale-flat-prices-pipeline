@@ -65,7 +65,7 @@ report is simply overwritten with the same result given the same inputs and `.en
 pytest
 ```
 
-48 unit tests cover the rule-bearing functions — source discovery and the combine guards, identifier construction (including the block
+The unit tests cover the rule-bearing functions — source discovery and the combine guards, identifier construction (including the block
 and month edge cases from the spec), the remaining-lease arithmetic, every validation rule,
 the cleaned + quarantined = input invariant, the per-month completeness check, the anomaly heuristic, and the properties the
 de-identification relies on (determinism, key-sensitivity, uniqueness). These are the places
