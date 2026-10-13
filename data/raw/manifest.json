@@ -1,0 +1,42 @@
+{
+  "collection_id": 189,
+  "note": "Raw files exactly as published by data.gov.sg. Checksums are verified on every run.",
+  "sources": [
+    {
+      "dataset_id": "d_43f493c6c50d54243cc1eab0df142d6a",
+      "name": "Resale Flat Prices (Based on Approval Date), 2000 - Feb 2012",
+      "filename": "ResaleFlatPricesBasedonApprovalDate2000Feb2012.csv",
+      "coverage_start": "2000-01",
+      "coverage_end": "2012-02",
+      "sha256": "5f6a72bd7b9120281863beb1fc4c89aa5f4923f00b0f6c52494c4347363f2c36",
+      "size_bytes": 29369945
+    },
+    {
+      "dataset_id": "d_2d5ff9ea31397b66239f245f57751537",
+      "name": "Resale Flat Prices (Based on Registration Date), From Mar 2012 to Dec 2014",
+      "filename": "ResaleFlatPricesBasedonRegistrationDateFromMar2012toDec2014.csv",
+      "coverage_start": "2012-03",
+      "coverage_end": "2014-12",
+      "sha256": "6a16e2dc78f70048ec1a522b59a9727581c36e45e02022641c53e755a7657c72",
+      "size_bytes": 4160771
+    },
+    {
+      "dataset_id": "d_ea9ed51da2787afaf8e51f827c304208",
+      "name": "Resale Flat Prices (Based on Registration Date), From Jan 2015 to Dec 2016",
+      "filename": "ResaleFlatPricesBasedonRegistrationDateFromJan2015toDec2016.csv",
+      "coverage_start": "2015-01",
+      "coverage_end": "2016-12",
+      "sha256": "4ff7ce4a4f642fb384d2b75a42e75b0477e50005f4aaa9989591a7a92507d185",
+      "size_bytes": 3070924
+    },
+    {
+      "dataset_id": "d_8b84c4ee58e3cfc0ece0d773c8ca6abc",
+      "name": "Resale flat prices based on registration date from Jan-2017 onwards",
+      "filename": "ResaleFlatPricesBasedonRegistrationDateFromJan2017onwards.csv",
+      "coverage_start": "2017-01",
+      "coverage_end": "2026-10",
+      "sha256": "945e09d75efb2eec1ab1618ce369c0d8eb885ef34158e29426f1af141d4000e4",
+      "size_bytes": 23940111
+    }
+  ]
+}
