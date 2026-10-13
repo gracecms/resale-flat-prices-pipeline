@@ -27,7 +27,8 @@ each time the notebook runs).
 
 ## Setup
 
-Requires Python 3.9–3.12 (tested on 3.9 and 3.12).
+Built with Python, pandas and Jupyter, with AI-assisted development tools. Requires Python
+3.9–3.12 (tested on 3.9 and 3.12).
 
 ```bash
 python -m venv .venv
