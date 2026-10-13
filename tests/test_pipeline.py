@@ -15,7 +15,7 @@ from src.combine import combine_sources
 from src.completeness import flagged_months, monthly_completeness
 from src.ingest import filename_from_download_url, overlaps_scope, resolve_sources, sha256_of
 from src.schema import SourceDataset
-from src.deidentify import hash_identifier
+from src.deidentify import PLACEHOLDER_KEY, ensure_secret_key, hash_identifier
 from src.identifier import _block_prefix, _month_to_yymm, build_resale_identifier
 from src.lease import add_remaining_lease
 from src.lease_check import parse_published_remaining_lease
@@ -329,3 +329,34 @@ def test_combine_refuses_sources_that_overlap_in_time(tmp_path):
     with pytest.raises(ValueError, match="double-count"):
         combine_sources([a, b], tmp_path, scope_start="2012-01", scope_end="2017-12",
                         authoritative_month="2012-01")
+
+
+# --------------------------------------------------------------------- secret key setup
+def test_missing_key_is_generated_and_saved(tmp_path, monkeypatch):
+    # setenv first so pytest restores the variable afterwards; ensure_secret_key sets it directly.
+    monkeypatch.setenv("HASH_SECRET_KEY", "placeholder-for-restore")
+    monkeypatch.delenv("HASH_SECRET_KEY")
+    env = tmp_path / ".env"
+    assert ensure_secret_key(env) is True
+    saved = env.read_text().strip().split("=", 1)[1]
+    assert len(saved) == 64 and saved != PLACEHOLDER_KEY
+
+
+def test_published_placeholder_key_is_replaced_not_used(tmp_path, monkeypatch):
+    """A key anyone can read from .env.example would defeat the dictionary-attack protection."""
+    # setenv first so pytest restores the variable afterwards; ensure_secret_key sets it directly.
+    monkeypatch.setenv("HASH_SECRET_KEY", "placeholder-for-restore")
+    monkeypatch.delenv("HASH_SECRET_KEY")
+    env = tmp_path / ".env"
+    env.write_text(f"OTHER_SETTING=1\nHASH_SECRET_KEY={PLACEHOLDER_KEY}\n")
+    assert ensure_secret_key(env) is True
+    text = env.read_text()
+    assert PLACEHOLDER_KEY not in text
+    assert "OTHER_SETTING=1" in text and text.count("HASH_SECRET_KEY=") == 1
+
+
+def test_existing_key_is_left_alone(tmp_path, monkeypatch):
+    monkeypatch.setenv("HASH_SECRET_KEY", "an-existing-secret")
+    env = tmp_path / ".env"
+    assert ensure_secret_key(env) is False
+    assert not env.exists()

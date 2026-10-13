@@ -168,16 +168,16 @@ n_eventbridge, n_sfn = band_ids[0], band_ids[1]
 g_ingest = group("Ingestion (Landing) VPC   10.1.0.0/16", 330, 410, 540, 990, C_VPC,
                  sublabel="The only VPC with any route to the internet", sub_color=C_ALERT)
 
-group("Public subnets (multi-AZ)   10.1.0.0/24", 360, 480, 480, 185, C_PUBLIC, fontsize=12)
+group("Public subnet   10.1.0.0/24", 360, 480, 480, 185, C_PUBLIC, fontsize=12)
 n_igw = node(IGW, 460, 525, 56, "Internet Gateway", "Egress routing only; no inbound")
-n_nat = node(NAT_GW, 700, 525, 56, "NAT Gateway (per AZ)", "Sole outbound path")
+n_nat = node(NAT_GW, 700, 525, 56, "NAT Gateway", "Sole outbound path")
 
-group("Inspection subnets   10.1.10.0/24", 360, 700, 480, 200, C_PRIVATE, fontsize=12)
+group("Inspection subnet   10.1.10.0/24", 360, 700, 480, 200, C_PRIVATE, fontsize=12)
 n_fw = node(NETFW, 600, 745, 64, "AWS Network Firewall",
             "Allow-list: data.gov.sg API hosts only (api-production, api-open);<br>all else dropped and logged · cost-optimised alt: DNS Firewall (README §4)",
             label_w=420)
 
-group("Private subnets   10.1.20.0/24", 360, 935, 480, 430, C_PRIVATE, fontsize=12)
+group("Private subnet   10.1.20.0/24", 360, 935, 480, 430, C_PRIVATE, fontsize=12)
 n_glue_in = node(GLUE, 470, 985, 64, "AWS Glue (Python Shell)",
                  "Streams source files to S3 by multipart<br>upload — no file-size ceiling.<br>1/16 DPU: right-sized for I/O work")
 n_ep_in = node(VPC_EP, 730, 990, 56, "VPC Endpoints",
@@ -188,7 +188,7 @@ label("VPC Flow Logs enabled  ·  SG: egress :443; inbound only Glue's self-refe
 g_proc = group("Processing VPC   10.2.0.0/16", 910, 410, 540, 990, C_VPC,
                sublabel="No IGW · no NAT · zero internet reachability", sub_color=C_ALERT)
 
-group("Private subnets (multi-AZ)   10.2.20.0/24", 940, 480, 480, 885, C_PRIVATE, fontsize=12)
+group("Private subnet   10.2.20.0/24", 940, 480, 480, 885, C_PRIVATE, fontsize=12)
 n_glue_etl = node(GLUE, 1040, 540, 64, "AWS Glue ETL (PySpark)",
                   "Part 1 logic at scale: combine, lease,<br>anomaly, identifier, HMAC.<br>Writes Parquet partitioned by month")
 n_dq = node(GLUE_DQ, 1300, 745, 60, "AWS Glue Data Quality",
@@ -217,7 +217,7 @@ label("Block Public Access  ·  bucket policies scoped to the platform VPC endpo
 group("Consumption VPC   10.3.0.0/16", 2010, 410, 330, 990, C_VPC,
       sublabel="Data Science Team · no internet route", sub_color=C_ALERT, fontsize=14)
 
-group("Private subnets   10.3.20.0/24", 2040, 480, 270, 885, C_PRIVATE, fontsize=12)
+group("Private subnets (2 AZs)   10.3.20.0/24", 2040, 480, 270, 885, C_PRIVATE, fontsize=12)
 n_tableau = node(EC2, 2175, 540, 64, "Tableau Server on EC2",
                  "Native Athena JDBC/ODBC connector;<br>analysts reach it via internal<br>ALB + IdP SSO", label_w=240)
 n_ep_cons = node(VPC_EP, 2175, 800, 56, "Interface Endpoints (PrivateLink)",
@@ -282,6 +282,7 @@ label("1 scheduled trigger   ·   2 egress forced through allow-list firewall   
 label("7 write validated Parquet zones   ·   8 DQ publish gate, then register partitions   ·   9 Tableau query   ·   "
       "10 Athena over PrivateLink   ·   11 results read back privately",
       1200, 1496, w=1960, h=22, size=12)
+label("Availability: ingestion and processing run in one AZ, since a re-run is their recovery path; the Tableau tier is multi-AZ. Costed alternatives in architecture/README.md.", 1200, 1522, w=1960, h=22, size=12)
 
 # =========================================================================== emit
 body = "\n".join(cells)

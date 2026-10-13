@@ -26,7 +26,7 @@ from aws_icons import (  # noqa: F401 - icon name constants are used throughout 
 OUT_PATH = Path(__file__).resolve().parent / "data_platform_architecture.png"
 
 FIG_W, FIG_H, DPI = 34, 18, 150
-XMIN, XMAX, YMIN, YMAX = 0, 170, -4, 84
+XMIN, XMAX, YMIN, YMAX = 0, 170, -6, 84
 
 # AWS diagram group-border colours, per the AWS architecture icon guidelines.
 C_CLOUD = "#242F3E"
@@ -134,18 +134,18 @@ for i, (icon_name, title, detail) in enumerate(BAND):
 group(19, 3.5, 38, 52.5, "Ingestion (Landing) VPC   10.1.0.0/16", C_VPC, icon=VPC_GROUP,
       sublabel="The only VPC with any route to the internet", sub_color=C_ALERT)
 
-group(21, 40, 34, 10, "Public subnets (multi-AZ)   10.1.0.0/24", C_PUBLIC, icon=PUB_SUBNET,
+group(21, 40, 34, 10, "Public subnet   10.1.0.0/24", C_PUBLIC, icon=PUB_SUBNET,
       lw=1.5, fs=9.2)
 node(IGW, 30, 44.3, "Internet Gateway", size=2.4, ts=8.8)
-node(NAT_GW, 46, 44.3, "NAT Gateway  (per AZ)", size=2.4, ts=8.8)
+node(NAT_GW, 46, 44.3, "NAT Gateway", size=2.4, ts=8.8)
 
-group(21, 25, 34, 12, "Inspection subnets   10.1.10.0/24", C_PRIVATE, icon=PRIV_SUBNET,
+group(21, 25, 34, 12, "Inspection subnet   10.1.10.0/24", C_PRIVATE, icon=PRIV_SUBNET,
       lw=1.5, fs=9.2)
 node(NETFW, 38, 31.8, "AWS Network Firewall",
      "Allow-list: data.gov.sg API hosts only;\nall else dropped + logged · alt: DNS Firewall",
      size=2.6, ts=8.9, ds=7.4)
 
-group(21, 5.5, 34, 17, "Private subnets   10.1.20.0/24", C_PRIVATE, icon=PRIV_SUBNET,
+group(21, 5.5, 34, 17, "Private subnet   10.1.20.0/24", C_PRIVATE, icon=PRIV_SUBNET,
       lw=1.5, fs=9.2)
 node(GLUE, 31, 16, "AWS Glue (Python Shell)",
      "Streams source files to S3 by\nmultipart upload — no size ceiling.\n1/16 DPU: right-sized for I/O work",
@@ -160,7 +160,7 @@ ax.text(38, 7.3, "VPC Flow Logs enabled  ·  SG: egress :443; inbound only Glue'
 group(61, 3.5, 38, 52.5, "Processing VPC   10.2.0.0/16", C_VPC, icon=VPC_GROUP,
       sublabel="No IGW · no NAT · zero internet reachability", sub_color=C_ALERT)
 
-group(63, 5.5, 34, 44.5, "Private subnets (multi-AZ)   10.2.20.0/24", C_PRIVATE,
+group(63, 5.5, 34, 44.5, "Private subnet   10.2.20.0/24", C_PRIVATE,
       icon=PRIV_SUBNET, lw=1.5, fs=9.2)
 node(GLUE, 73, 44, "AWS Glue ETL (PySpark)",
      "Part 1 logic at scale: combine,\nlease, anomaly, identifier, HMAC.\nWrites Parquet partitioned by month",
@@ -193,7 +193,7 @@ ax.text(120, 4.8, "Block Public Access  ·  bucket policies scoped to the platfo
 group(141, 3.5, 26, 52.5, "Consumption VPC   10.3.0.0/16", C_VPC, icon=VPC_GROUP, fs=10.0,
       sublabel="Data Science Team · no internet route", sub_color=C_ALERT)
 
-group(143, 5.5, 22, 44.5, "Private subnets   10.3.20.0/24", C_PRIVATE, icon=PRIV_SUBNET,
+group(143, 5.5, 22, 44.5, "Private subnets (2 AZs)   10.3.20.0/24", C_PRIVATE, icon=PRIV_SUBNET,
       lw=1.5, fs=9.2)
 node(EC2, 154, 41, "Tableau Server on EC2",
      "Native Athena JDBC/ODBC\nconnector; analysts reach it\nvia internal ALB + IdP SSO", size=2.8, ts=8.9, ds=7.4)
@@ -245,6 +245,8 @@ ax.text(18, -2.8,
         "7  write validated Parquet zones      8  DQ publish gate, then register partitions      9  Tableau query      "
         "10  Athena over PrivateLink      11  results read back privately",
         ha="left", va="center", fontsize=9.6, color=C_MUTED)
+ax.text(18, -4.6, "Availability: ingestion and processing run in one AZ, since a re-run is their recovery path; the Tableau tier is multi-AZ. Costed alternatives in architecture/README.md.",
+        ha="left", va="center", fontsize=9.6, color=C_MUTED, style="italic")
 
 ax.set_xlim(XMIN, XMAX)
 ax.set_ylim(YMIN, YMAX)

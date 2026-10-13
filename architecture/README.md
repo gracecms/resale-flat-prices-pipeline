@@ -53,7 +53,8 @@ The brief calls out the public/private boundary explicitly, so the design treats
 primary structuring principle rather than an afterthought:
 
 **Ingestion (Landing) VPC — `10.1.0.0/16`** — the only tier with internet reachability.
-- *Public subnets*: IGW + NAT Gateway (one per AZ). No workload runs here.
+- *Public subnet*: IGW + NAT Gateway. No workload runs here. Like the rest of the batch
+  tiers, it is single-AZ (see §4 for why).
 - *Inspection subnets*: AWS Network Firewall. All internet-bound traffic from the private
   subnets is routed through it, and the allow-list permits only data.gov.sg's two API hosts:
   `api-production.data.gov.sg` (dataset discovery) and `api-open.data.gov.sg` (downloads). Anything else is dropped and logged, so a compromised job cannot send
@@ -196,46 +197,47 @@ These are the decisions that make the design cheap and fast to run, not just cor
 At this workload (a monthly batch of about 60 MB), the variable costs are negligible —
 Glue, Athena, S3 storage and per-GB processing together come to a few dollars a month. **The
 bill is almost entirely always-on network plumbing**, so that is where cost decisions matter.
-Fixed monthly cost of the design as drawn, from the AWS Price List API for ap-southeast-1
+Fixed monthly cost of the design as drawn — Network Firewall, with ingestion and processing in
+a single AZ and the Tableau tier across two — from the AWS Price List API for ap-southeast-1
 (730 hours/month, list prices at time of writing; check against the AWS Pricing Calculator
 before budgeting):
 
 | Line item | Unit price | Quantity | Monthly |
 |---|---|---|---|
-| AWS Network Firewall endpoint | $0.395 / endpoint-hour | 2 AZs | $577 |
-| NAT Gateway | $0.059 / hour | 2 AZs | $86 |
-| Interface endpoints (PrivateLink) | $0.013 / endpoint-hour per AZ | 11 endpoints × 2 AZs ¹ | $209 |
+| AWS Network Firewall endpoint | $0.395 / endpoint-hour | 1 AZ | $288 |
+| NAT Gateway | $0.059 / hour | 1 AZ | $43 |
+| Interface endpoints (PrivateLink) | $0.013 / endpoint-hour per AZ | 8 batch-tier endpoints × 1 AZ + 3 Tableau-tier endpoints × 2 AZs ¹ | $133 |
 | S3 Gateway Endpoints | free | 3 | $0 |
-| **Total fixed** | | | **$872** (~$10,459/yr) |
+| **Total fixed** | | | **$464** (~$5,571/yr) |
 
 ¹ Ingestion: Glue, Logs, STS · Processing: Secrets Manager, KMS, Glue, STS, Logs · Consumption: Athena, Glue, STS.
 
-Network Firewall alone is about two-thirds of that, to inspect what is a handful of small API
-calls a month. That is out of proportion to the workload, so there are two levers:
+Two decisions drive that figure:
 
-- **Replace Network Firewall with Route 53 Resolver DNS Firewall.** Same allow-list intent
-  (only the two data.gov.sg API hosts resolve), but priced per query — $0.60 per million — so it is
-  effectively free here. The trade-off is real: DNS Firewall controls *name resolution*, while
-  Network Firewall inspects the *connection* (TLS SNI). A process that connects to a hard-coded
-  IP address bypasses DNS Firewall. That gap is partly covered by security-group egress rules
-  plus VPC Flow Logs and GuardDuty alerting on unexpected destinations.
-- **Run only the interactive tier multi-AZ.** Ingestion and processing are a monthly batch: if
-  an AZ fails mid-run, re-running it is the recovery plan, and that is safe because every stage
-  is idempotent. Only Tableau, which serves users, needs to survive an AZ loss.
+- **Only the interactive tier is multi-AZ.** Ingestion and processing are a monthly batch: if an
+  AZ fails mid-run, re-running it is the recovery plan, and that is safe because every stage is
+  idempotent. Only Tableau, which serves users, needs to survive an AZ loss. Running every tier
+  across two AZs would roughly double the network cost for availability the workload doesn't
+  need.
+- **Network Firewall is still most of the bill**, to inspect a handful of small API calls a
+  month. The alternative is **Route 53 Resolver DNS Firewall**: the same allow-list intent (only
+  the two data.gov.sg API hosts resolve), priced per query — $0.60 per million — so effectively
+  free here. The trade-off is real: DNS Firewall controls *name resolution*, while Network
+  Firewall inspects the *connection* (TLS SNI). A process that connects to a hard-coded IP
+  address bypasses DNS Firewall. Security-group egress rules, VPC Flow Logs and GuardDuty
+  alerting on unexpected destinations partly cover that gap.
 
 | Configuration | Egress control | Batch tiers | Fixed / month |
 |---|---|---|---|
-| **A** — as drawn | Network Firewall | 2 AZs | **$872** |
-| **A′** | Network Firewall | 1 AZ | **$464** |
-| **B** | DNS Firewall | 2 AZs | **$295** |
-| **C** | DNS Firewall | 1 AZ | **$176** |
+| All tiers multi-AZ | Network Firewall | 2 AZs | **$872** |
+| **As drawn** | Network Firewall | 1 AZ | **$464** |
+| All tiers multi-AZ | DNS Firewall | 2 AZs | **$295** |
+| Lowest cost | DNS Firewall | 1 AZ | **$176** |
 
-**Recommendation:** decide on security policy, then take the cheaper option within it. The
-diagram shows Network Firewall because a government security baseline often requires egress
-inspection at the connection level. If HDB's baseline requires it, use **A′**: the same
-controls for about half the cost of A. If it doesn't, **C** keeps the same allow-list intent
-for about a fifth of A's cost. A as drawn — multi-AZ everything for a monthly batch — buys
-availability the workload doesn't need.
+**Recommendation:** the diagram uses Network Firewall because a government security baseline
+often requires egress inspection at the connection level. If HDB's baseline doesn't require
+that, switching to DNS Firewall keeps the same allow-list intent and brings the fixed cost down
+to about $176 a month, with nothing else in the design changing.
 
 ---
 
@@ -246,7 +248,7 @@ and a run-level audit trail, rather than a cron'd script that fails silently. St
 idempotent (deterministic overwrite from the same inputs), so a retried run is safe. `raw/` is
 versioned and immutable, so any downstream bug is recoverable by reprocessing rather than
 re-fetching from the source. Glue, Athena and S3 are regional multi-AZ services. The batch
-tiers' network components (NAT, firewall, endpoints) can run in a single AZ, because a re-run is
+tiers' network components (NAT, firewall, endpoints) run in a single AZ, because a re-run is
 their recovery path (see the cost section). Only the consumption tier, Tableau Server, needs
 explicit multi-AZ HA design. The publish gate (§3) is the main data-correctness control: it
 stops a run that reconciles perfectly but is still wrong from ever reaching analysts.
@@ -280,7 +282,7 @@ suffixes become non-deterministic across runs and the hashed output stops being 
   work; Glue was preferred for Data Catalog and bookmark integration.
 - **Egress control: Network Firewall vs. DNS Firewall vs. NAT alone.** NAT alone would satisfy
   "it works" but leaves outbound traffic open to anywhere. Network Firewall inspects each
-  connection and allows only the two data.gov.sg API hosts, but costs ~$577/month across two AZs. DNS
+  connection and allows only the two data.gov.sg API hosts, but costs ~$288/month even in a single AZ. DNS
   Firewall achieves the same allow-list intent for effectively nothing, but can be bypassed by a
   hard-coded IP. Costed comparison and recommendation are in §4. The deciding input is HDB's
   security baseline, not the technology.

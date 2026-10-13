@@ -22,18 +22,47 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import secrets
+from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
 
+KEY_NAME = "HASH_SECRET_KEY"
+# The value shipped in .env.example. It is public, so a key equal to it protects nothing.
+PLACEHOLDER_KEY = "change-me-to-a-random-secret"
+
+
+def ensure_secret_key(env_path: Path) -> bool:
+    """Make sure a usable secret key exists, creating a local one if needed.
+
+    Returns True if a new key was generated. A missing key, an empty one, or the published
+    placeholder all count as unusable. The placeholder especially: hashing with a key anyone
+    can read would undo the protection against dictionary attacks.
+    """
+    load_dotenv(env_path)
+    current = os.environ.get(KEY_NAME, "")
+    if current and current != PLACEHOLDER_KEY:
+        return False
+
+    key = secrets.token_hex(32)
+    lines = env_path.read_text().splitlines() if env_path.exists() else []
+    # Replace an existing key line rather than appending a second one; keep any other settings.
+    lines = [line for line in lines if not line.strip().startswith(f"{KEY_NAME}=")]
+    lines.append(f"{KEY_NAME}={key}")
+    env_path.write_text("\n".join(lines) + "\n")
+    os.environ[KEY_NAME] = key
+    return True
+
 
 def _get_secret_key() -> bytes:
-    key = os.environ.get("HASH_SECRET_KEY")
-    if not key:
+    key = os.environ.get(KEY_NAME)
+    if not key or key == PLACEHOLDER_KEY:
         raise RuntimeError(
-            "HASH_SECRET_KEY is not set. Copy .env.example to .env and set a secret value."
+            f"{KEY_NAME} is not set (or is still the .env.example placeholder). "
+            "Call ensure_secret_key() or set a secret value in .env."
         )
     return key.encode("utf-8")
 

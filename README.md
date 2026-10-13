@@ -27,14 +27,18 @@ each time the notebook runs).
 
 ## Setup
 
-Requires Python 3.9+.
+Requires Python 3.9–3.12 (tested on 3.9 and 3.12).
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
-# edit .env and set HASH_SECRET_KEY to any random string (used only locally, for the
-# HMAC-based de-identification step — see src/deidentify.py for why a secret key matters)
 ```
+
+No other setup is needed. The de-identification step uses a secret key (`HASH_SECRET_KEY` in
+`.env`). If there isn't one, the notebook generates a random local key on first run. Because
+the key is secret, your hashed identifiers will differ from the committed outputs — that is
+expected. See `src/deidentify.py` for why a secret key, rather than a plain hash, is needed.
 
 ## Running
 
@@ -94,7 +98,7 @@ where a silent error would flow into every output without the row counts ever lo
 │   ├── generate_diagram.py    #   renders the PNG
 │   ├── generate_drawio.py     #   renders the .drawio
 │   └── aws_icons.py           #   downloads/caches the official AWS icon pack
-├── .env.example               # HASH_SECRET_KEY placeholder (.env itself is gitignored)
+├── .env.example               # optional: set your own HASH_SECRET_KEY (.env is gitignored)
 └── requirements.txt
 ```
 
